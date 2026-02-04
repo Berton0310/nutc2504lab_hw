@@ -105,7 +105,7 @@ workflow.add_node("writer", writer_node)
 # 設定入口
 workflow.set_entry_point("asr")
 
-# 設定邊 (Edges)
+# 設定邊(Edges)
 # ASR 完成後，同時進行 Minutes Taker 和 Summarizer (平行)
 workflow.add_edge("asr", "minutes_taker")
 workflow.add_edge("asr", "summarizer")

@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE = "https://3090api.huannago.com"
 CREATE_URL = f"{BASE}/api/v1/subtitle/tasks"
-WAV_PATH = "Podcast_EP14_30s.wav" # 請自行更改為測試音檔路徑
+WAV_PATH = "Podcast_EP14_30s.wav" # 請更改為測試音檔路徑
 auth = ("nutc2504", "nutc2504")
 
 out_dir = Path("./out")
