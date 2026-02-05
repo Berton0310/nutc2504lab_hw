@@ -14,18 +14,18 @@ from vlm_read_website import vlm_read_website
 # --- 配置 ---
 CACHE_FILE = "hw4_cache.json"
 
-# llm = ChatOpenAI(
-#     base_url="https://ws-02.wade0426.me/v1",
-#     api_key="EMPTY",
-#     model="models/gpt-oss-120b",
-#     temperature=0
-# )
-llm = ChatVertexAI(
-    model="gemini-2.5-pro",
-    project="gen-lang-client-0342191491",  # <--- 關鍵！這裡填對，錢就從抵免額出
-    location="us-central1",     # 建議選 us-central1 資源最豐富
+llm = ChatOpenAI(
+    base_url="https://ws-05.huannago.com/v1",
+    api_key="EMPTY",
+    model="Qwen3-VL-8B-Instruct-BF16.gguf",
     temperature=0.7
 )
+# llm = ChatVertexAI(
+#     model="gemini-2.5-pro",
+#     project="gen-lang-client-0342191491",  # <--- 關鍵！這裡填對，錢就從抵免額出
+#     location="us-central1",     # 建議選 us-central1 資源最豐富
+#     temperature=0.7
+# )
 # --- 狀態定義 ---
 class State(TypedDict):
     question: str
@@ -115,12 +115,16 @@ def query_gen_node(state: State):
     """3. 生成搜尋關鍵字"""
     print("\n[系統] 正在生成搜尋關鍵字...")
     
-    prompt = f"根據問題 '{state['question']}'，生成一個具體的 Google 搜尋關鍵字以尋找答案。僅輸出關鍵字文字。"
-    response = llm.invoke(prompt)
-    query = response.content.strip().replace('"', '')
-    
-    print(f"--- 關鍵字: {query} ---")
-    return {"current_query": query} 
+    try:
+        prompt = f"根據問題 '{state['question']}'，生成一個具體的 Google 搜尋關鍵字以尋找答案。僅輸出關鍵字文字。"
+        # 加入超時控制 (如果模型支援 timeout 參數，否則標準 invoke 可能不支援，這裡加 try-except 是核心)
+        response = llm.invoke(prompt)
+        query = response.content.strip().replace('"', '')
+        print(f"--- 關鍵字: {query} ---")
+        return {"current_query": query}
+    except Exception as e:
+        print(f"❌ 生成關鍵字失敗: {e}")
+        return {"current_query": state['question']} 
 
 def search_tool_node(state: State):
     """4. 執行搜尋"""
@@ -231,14 +235,35 @@ app = workflow.compile()
 print(app.get_graph().draw_ascii())
 # --- 執行 ---
 if __name__ == "__main__":
-    user_input = input("我是全能查證 AI 助手，請問有什麼想知道的嗎？")
+    user_input = input("我是全能查證 AI 助手，請問有什麼想知道的嗎？").strip()
     if not user_input:
-        user_input = "最近誰爬了101大樓" # 測試預設值
+        user_input = "最近誰爬了101大樓"
 
-    events = app.stream(
+    print("\n" + "="*50)
+    print("🔍 開始查證流程")
+    print("="*50)
+    
+    # 使用 invoke 取代 stream
+    result = app.invoke(
         {"question": user_input, "loop_count": 0},
         config={"recursion_limit": 50}
     )
     
-    for event in events:
-        pass # 節點內已有列印輸出
+    # 輸出最終結果
+    print("\n" + "="*50)
+    print("📝 查證結果")
+    print("="*50)
+    print(f"來源: {result.get('source', 'LLM')}")
+    print(f"迴圈次數: {result.get('loop_count', 0)}")
+    
+    print("\n[回答]")
+    print(result.get("answer", "無法生成答案"))
+    
+    # 顯示參考來源
+    results = result.get('search_results', [])
+    if results:
+        print("\n[參考來源]")
+        for idx, res in enumerate(results, 1):
+            title = res.get('title', '無標題')
+            url = res.get('url', '無連結')
+            print(f"{idx}. {title} ({url})")
